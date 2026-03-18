@@ -207,7 +207,7 @@ function buildRegionStats() {
               const p2 = v.total ? Math.round(v.done / v.total * 100) : 0;
               return `<div class="dong-item" data-sg="${sg}" data-bd="${bd}">
                 <span>${bd}</span>
-                <span>${v.done}/${v.total} (${p2}%)</span>
+                <span>완료${v.done} 폐업${v.closed} / ${v.total}</span>
               </div>`;
             }).join("")}
         </div>`;
@@ -326,9 +326,11 @@ document.getElementById("popup-action").addEventListener("click", () => {
   if (!p) return;
 
   if (p.status === "delivered") {
-    p.status = "pending";
+    p.status = "pending";          // 배포완료 → 미배포
+  } else if (p.status === "closed") {
+    p.status = "pending";          // 폐업취소 → 미배포
   } else {
-    p.status = "delivered";
+    p.status = "delivered";        // 미배포 → 배포완료
     p.deliveredAt = new Date().toISOString();
   }
 
@@ -494,7 +496,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
     "주소": p.address || "",
     "전화번호": p.phone || "",
     "핸드폰": p.mobile || "",
-    "배포상태": p.isDelivered ? "완료" : "미배포",
+    "배포상태": p.status === "delivered" ? "완료" : p.status === "closed" ? "폐업" : "미배포",
     "완료일시": p.deliveredAt ? p.deliveredAt.slice(0, 10) : ""
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
