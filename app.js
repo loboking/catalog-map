@@ -126,7 +126,7 @@ function getFiltered() {
     if (currentDong    && p.beopjeongdong !== currentDong)     return false;
     if (searchQuery) {
       const q = searchQuery;
-      if (!p.name.includes(q) && !(p.address||"").includes(q)) return false;
+      if (!(p.name||"").includes(q) && !(p.address||"").includes(q)) return false;
     }
     return true;
   });
@@ -327,6 +327,7 @@ document.getElementById("popup-action").addEventListener("click", () => {
 
   if (p.status === "delivered") {
     p.status = "pending";          // 배포완료 → 미배포
+    p.deliveredAt = null;          // 완료일시 초기화
   } else if (p.status === "closed") {
     p.status = "pending";          // 폐업취소 → 미배포
   } else {
@@ -446,7 +447,7 @@ function renderList() {
         ${{delivered:"🟢 완료", closed:"⚫ 폐업", pending:"🔴 미배포"}[p.status]}
       </span></td>
       <td style="display:flex;gap:4px;">
-        <button class="btn-toggle" data-id="${p.id}">
+        <button class="btn-toggle" data-id="${p.id}" ${p.status === "closed" ? "disabled style='opacity:0.3;cursor:not-allowed;'" : ""}>
           ${p.status === "delivered" ? "배포취소" : "완료"}
         </button>
         <button class="btn-close-toggle" data-id="${p.id}" style="background:#e2e8f0;color:#475569;">
