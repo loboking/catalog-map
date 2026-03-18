@@ -1,15 +1,11 @@
-// ── 상태 ──────────────────────────────────────────────────────────
-const STORAGE_KEY = "delivery_status_v1";
+// ── Supabase 초기화 ───────────────────────────────────────────────
+const { createClient } = supabase;
+const sb = createClient(
+  'https://kyhyaphsyykqxtbxqqfa.supabase.co',
+  'sb_publishable_0gaX2d8Tc5CjYu3Fp0BNrg_qZPV0tbP'
+);
 
-function loadDeliveryState() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); }
-  catch { return {}; }
-}
-function saveDeliveryState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-// 시군구명 정규화
+// ── 시군구명 정규화 ───────────────────────────────────────────────
 function normalizeSigungu(sg) {
   if (!sg) return "";
   sg = sg.trim().replace("충청남도 ", "");
@@ -18,30 +14,15 @@ function normalizeSigungu(sg) {
   return sg;
 }
 
-// status: 'pending' | 'delivered' | 'closed'
-let deliveryState = loadDeliveryState();
-const properties = PROPERTIES.map(p => {
-  let status = "pending";
-  if (deliveryState.hasOwnProperty(p.id)) {
-    // 신규 포맷 (string) 또는 구 포맷 (boolean) 모두 처리
-    const val = deliveryState[p.id];
-    if (val === "closed") status = "closed";
-    else if (val === true || val === "delivered") status = "delivered";
-    else status = "pending";
-  } else {
-    status = p.isDelivered ? "delivered" : "pending";
-  }
-  return { ...p, sigungu: normalizeSigungu(p.sigungu), status };
-});
-
+let properties = [];
 let currentFilter = "all";
 let currentSigungu = "";
 let currentDong = "";
 let searchQuery = "";
+let currentView = "map";
 
 // ── 지도 초기화 (Leaflet) ─────────────────────────────────────────
 const map = L.map("map").setView([36.8065, 127.1105], 11);
-
 L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
   attribution: "© OpenStreetMap contributors © CARTO",
   maxZoom: 19
@@ -84,9 +65,9 @@ const clusterGroup = L.markerClusterGroup({
   maxClusterRadius: 50,
   iconCreateFunction(cluster) {
     const markers = cluster.getAllChildMarkers();
-    const done = markers.filter(m => m.options._status === "delivered").length;
+    const done  = markers.filter(m => m.options._status === "delivered").length;
     const total = markers.length;
-    const pct = total ? done / total : 0;
+    const pct   = total ? done / total : 0;
     const color = pct >= 0.71 ? "#22c55e" : pct >= 0.31 ? "#eab308" : "#ef4444";
     return L.divIcon({
       html: `<div style="
@@ -103,21 +84,18 @@ const clusterGroup = L.markerClusterGroup({
 });
 map.addLayer(clusterGroup);
 
-// ── 마커 생성 ─────────────────────────────────────────────────────
 const markerMap = {};
 
-properties.forEach(p => {
-  if (!p.lat || !p.lng) return;
-  const marker = L.marker([p.lat, p.lng], {
-    icon: getIcon(p.status),
-    _status: p.status,
-    _id: p.id
-  });
-  marker.on("click", () => openPopup(p));
-  markerMap[p.id] = marker;
-});
+// ── Supabase 상태 저장 ────────────────────────────────────────────
+async function saveStatus(propertyId, status, deliveredAt) {
+  await sb.from('delivery_status').upsert({
+    property_id: propertyId,
+    status: status,
+    delivered_at: deliveredAt || null
+  }, { onConflict: 'property_id' });
+}
 
-// ── 필터링 & 렌더링 ───────────────────────────────────────────────
+// ── 필터링 ────────────────────────────────────────────────────────
 function getFiltered() {
   return properties.filter(p => {
     if (!p.lat || !p.lng) return false;
@@ -134,8 +112,7 @@ function getFiltered() {
 
 function renderMarkers() {
   clusterGroup.clearLayers();
-  const filtered = getFiltered();
-  filtered.forEach(p => {
+  getFiltered().forEach(p => {
     const m = markerMap[p.id];
     if (m) clusterGroup.addLayer(m);
   });
@@ -143,19 +120,17 @@ function renderMarkers() {
 
 // ── 통계 ─────────────────────────────────────────────────────────
 function updateStats() {
-  const total    = properties.length;
-  const done     = properties.filter(p => p.status === "delivered").length;
-  const closed   = properties.filter(p => p.status === "closed").length;
-  const left     = total - done - closed;
-  const pct      = total ? Math.round(done / total * 100) : 0;
+  const total  = properties.length;
+  const done   = properties.filter(p => p.status === "delivered").length;
+  const closed = properties.filter(p => p.status === "closed").length;
+  const left   = total - done - closed;
+  const pct    = total ? Math.round(done / total * 100) : 0;
 
-  document.getElementById("stat-total").textContent  = total.toLocaleString();
-  document.getElementById("stat-done").textContent   = done.toLocaleString();
-  document.getElementById("stat-left").textContent   = left.toLocaleString();
-  document.getElementById("stat-pct").textContent    = pct;
+  document.getElementById("stat-total").textContent   = total.toLocaleString();
+  document.getElementById("stat-done").textContent    = done.toLocaleString();
+  document.getElementById("stat-left").textContent    = left.toLocaleString();
+  document.getElementById("stat-pct").textContent     = pct;
   document.getElementById("progress-bar").style.width = pct + "%";
-
-  // 폐업 수치
   const el = document.getElementById("stat-closed");
   if (el) el.textContent = closed.toLocaleString();
 }
@@ -186,7 +161,7 @@ function buildRegionStats() {
       const totSg    = Object.values(dongs).reduce((s, v) => s + v.total,  0);
       const doneSg   = Object.values(dongs).reduce((s, v) => s + v.done,   0);
       const closedSg = Object.values(dongs).reduce((s, v) => s + v.closed, 0);
-      const pctSg  = totSg ? Math.round(doneSg / totSg * 100) : 0;
+      const pctSg    = totSg ? Math.round(doneSg / totSg * 100) : 0;
       const barColor = pctSg >= 71 ? "#22c55e" : pctSg >= 31 ? "#eab308" : "#ef4444";
 
       const item = document.createElement("div");
@@ -203,13 +178,10 @@ function buildRegionStats() {
         <div class="dong-list" id="dong-${sg.replace(/\s/g, '')}">
           ${Object.entries(dongs)
             .sort((a, b) => b[1].total - a[1].total)
-            .map(([bd, v]) => {
-              const p2 = v.total ? Math.round(v.done / v.total * 100) : 0;
-              return `<div class="dong-item" data-sg="${sg}" data-bd="${bd}">
-                <span>${bd}</span>
-                <span>완료${v.done} 폐업${v.closed} / ${v.total}</span>
-              </div>`;
-            }).join("")}
+            .map(([bd, v]) => `<div class="dong-item" data-sg="${sg}" data-bd="${bd}">
+              <span>${bd}</span>
+              <span>완료${v.done} 폐업${v.closed} / ${v.total}</span>
+            </div>`).join("")}
         </div>`;
       container.appendChild(item);
 
@@ -238,14 +210,12 @@ function buildRegionStats() {
 function flyToRegion(sigungu) {
   const pts = properties.filter(p => p.lat && p.sigungu.includes(sigungu));
   if (!pts.length) return;
-  const bounds = L.latLngBounds(pts.map(p => [p.lat, p.lng]));
-  map.fitBounds(bounds, { padding: [30, 30] });
+  map.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lng])), { padding: [30, 30] });
 }
 function flyToDong(dong) {
   const pts = properties.filter(p => p.lat && p.beopjeongdong === dong);
   if (!pts.length) return;
-  const bounds = L.latLngBounds(pts.map(p => [p.lat, p.lng]));
-  map.fitBounds(bounds, { padding: [40, 40] });
+  map.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lng])), { padding: [40, 40] });
 }
 
 // ── 팝업 ─────────────────────────────────────────────────────────
@@ -262,7 +232,6 @@ function openPopup(p) {
   const badge  = document.getElementById("popup-badge");
   const action = document.getElementById("popup-action");
 
-  // 폐업 버튼 (항상 표시)
   let closedBtn = document.getElementById("popup-closed-btn");
   if (!closedBtn) {
     closedBtn = document.createElement("button");
@@ -275,8 +244,8 @@ function openPopup(p) {
     badge.className    = "badge delivered";
     action.textContent = "↩ 배포 취소";
     action.className   = "cancel";
-    closedBtn.textContent = "⚫ 폐업 처리";
-    closedBtn.className   = "closed-btn";
+    closedBtn.textContent   = "⚫ 폐업 처리";
+    closedBtn.className     = "closed-btn";
     closedBtn.style.display = "";
   } else if (p.status === "closed") {
     badge.textContent  = "⚫ 폐업";
@@ -289,18 +258,17 @@ function openPopup(p) {
     badge.className    = "badge pending";
     action.textContent = "✓ 배포 완료 처리";
     action.className   = "deliver";
-    closedBtn.textContent = "⚫ 폐업 처리";
-    closedBtn.className   = "closed-btn";
+    closedBtn.textContent   = "⚫ 폐업 처리";
+    closedBtn.className     = "closed-btn";
     closedBtn.style.display = "";
   }
 
-  // 폐업 버튼 이벤트 (중복 방지)
-  closedBtn.onclick = () => {
+  closedBtn.onclick = async () => {
     const pp = properties.find(x => x.id === currentPopupId);
     if (!pp) return;
     pp.status = pp.status === "closed" ? "pending" : "closed";
-    deliveryState[pp.id] = pp.status;
-    saveDeliveryState(deliveryState);
+    if (pp.status === "closed") pp.deliveredAt = null;
+    await saveStatus(pp.id, pp.status, pp.deliveredAt);
     const m = markerMap[pp.id];
     if (m) { m.setIcon(getIcon(pp.status)); m.options._status = pp.status; }
     updateStats(); buildRegionStats(); renderMarkers();
@@ -320,33 +288,25 @@ function closePopup() {
 document.getElementById("popup-close").addEventListener("click", closePopup);
 document.getElementById("overlay").addEventListener("click", closePopup);
 
-document.getElementById("popup-action").addEventListener("click", () => {
+document.getElementById("popup-action").addEventListener("click", async () => {
   if (currentPopupId === null) return;
   const p = properties.find(x => x.id === currentPopupId);
   if (!p) return;
 
   if (p.status === "delivered") {
-    p.status = "pending";          // 배포완료 → 미배포
-    p.deliveredAt = null;          // 완료일시 초기화
+    p.status = "pending";
+    p.deliveredAt = null;
   } else if (p.status === "closed") {
-    p.status = "pending";          // 폐업취소 → 미배포
+    p.status = "pending";
   } else {
-    p.status = "delivered";        // 미배포 → 배포완료
+    p.status = "delivered";
     p.deliveredAt = new Date().toISOString();
   }
 
-  deliveryState[p.id] = p.status;
-  saveDeliveryState(deliveryState);
-
+  await saveStatus(p.id, p.status, p.deliveredAt);
   const m = markerMap[p.id];
-  if (m) {
-    m.setIcon(getIcon(p.status));
-    m.options._status = p.status;
-  }
-
-  updateStats();
-  buildRegionStats();
-  renderMarkers();
+  if (m) { m.setIcon(getIcon(p.status)); m.options._status = p.status; }
+  updateStats(); buildRegionStats(); renderMarkers();
   closePopup();
 });
 
@@ -369,13 +329,6 @@ document.querySelectorAll(".filter-btn").forEach(btn => {
 // ── 지역 드롭다운 ─────────────────────────────────────────────────
 const selSigungu = document.getElementById("sel-sigungu");
 const selDong    = document.getElementById("sel-dong");
-
-const sgs = [...new Set(properties.map(p => p.sigungu).filter(Boolean))].sort();
-sgs.forEach(sg => {
-  const opt = document.createElement("option");
-  opt.value = sg; opt.textContent = sg;
-  selSigungu.appendChild(opt);
-});
 
 selSigungu.addEventListener("change", () => {
   currentSigungu = selSigungu.value;
@@ -411,8 +364,6 @@ document.getElementById("search-box").addEventListener("input", function () {
 });
 
 // ── 뷰 탭 전환 ───────────────────────────────────────────────────
-let currentView = "map";
-
 document.querySelectorAll(".view-tab").forEach(tab => {
   tab.addEventListener("click", function () {
     document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
@@ -435,8 +386,7 @@ document.querySelectorAll(".view-tab").forEach(tab => {
 function renderList() {
   const filtered = getFiltered();
   const tbody = document.getElementById("list-tbody");
-  document.getElementById("list-count").textContent =
-    `총 ${filtered.length.toLocaleString()}개`;
+  document.getElementById("list-count").textContent = `총 ${filtered.length.toLocaleString()}개`;
 
   tbody.innerHTML = "";
   filtered.forEach((p, idx) => {
@@ -463,9 +413,8 @@ function renderList() {
     tbody.appendChild(tr);
   });
 
-  // 완료/취소 버튼
   tbody.querySelectorAll(".btn-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const p = properties.find(x => x.id == btn.dataset.id);
       if (!p) return;
       if (p.status === "delivered") {
@@ -475,22 +424,19 @@ function renderList() {
         p.status = "delivered";
         p.deliveredAt = new Date().toISOString();
       }
-      deliveryState[p.id] = p.status;
-      saveDeliveryState(deliveryState);
+      await saveStatus(p.id, p.status, p.deliveredAt);
       const m = markerMap[p.id];
       if (m) { m.setIcon(getIcon(p.status)); m.options._status = p.status; }
       updateStats(); buildRegionStats(); renderList();
     });
   });
 
-  // 폐업/폐업취소 버튼
   tbody.querySelectorAll(".btn-close-toggle").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const p = properties.find(x => x.id == btn.dataset.id);
       if (!p) return;
       p.status = p.status === "closed" ? "pending" : "closed";
-      deliveryState[p.id] = p.status;
-      saveDeliveryState(deliveryState);
+      await saveStatus(p.id, p.status, p.deliveredAt);
       const m = markerMap[p.id];
       if (m) { m.setIcon(getIcon(p.status)); m.options._status = p.status; }
       updateStats(); buildRegionStats(); renderList();
@@ -530,7 +476,73 @@ document.getElementById("panel-open-btn").addEventListener("click", () => {
   map.invalidateSize();
 });
 
-// ── 초기 실행 ─────────────────────────────────────────────────────
-updateStats();
-buildRegionStats();
-renderMarkers();
+// ── 실시간 구독 (다른 기기 변경사항 자동 반영) ────────────────────
+function subscribeRealtime() {
+  sb.channel('delivery_status_changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'delivery_status'
+    }, payload => {
+      const row = payload.new;
+      if (!row) return;
+      const p = properties.find(x => x.id === row.property_id);
+      if (!p) return;
+      p.status     = row.status || "pending";
+      p.deliveredAt = row.delivered_at || null;
+      const m = markerMap[p.id];
+      if (m) { m.setIcon(getIcon(p.status)); m.options._status = p.status; }
+      updateStats(); buildRegionStats(); renderCurrent();
+    })
+    .subscribe();
+}
+
+// ── 초기화 ────────────────────────────────────────────────────────
+async function init() {
+  // Supabase에서 배포 상태 로드
+  const { data } = await sb.from('delivery_status').select('*');
+  const stateMap = {};
+  if (data) {
+    data.forEach(row => {
+      stateMap[row.property_id] = { status: row.status, deliveredAt: row.delivered_at };
+    });
+  }
+
+  // properties 초기화
+  PROPERTIES.forEach(p => {
+    const saved = stateMap[p.id];
+    const status      = saved ? saved.status      : (p.isDelivered ? "delivered" : "pending");
+    const deliveredAt = saved ? saved.deliveredAt : null;
+    properties.push({ ...p, sigungu: normalizeSigungu(p.sigungu), status, deliveredAt });
+  });
+
+  // 마커 생성
+  properties.forEach(p => {
+    if (!p.lat || !p.lng) return;
+    const marker = L.marker([p.lat, p.lng], {
+      icon: getIcon(p.status),
+      _status: p.status,
+      _id: p.id
+    });
+    marker.on("click", () => openPopup(p));
+    markerMap[p.id] = marker;
+  });
+
+  // 시군구 드롭다운 초기화
+  const sgs = [...new Set(properties.map(p => p.sigungu).filter(Boolean))].sort();
+  sgs.forEach(sg => {
+    const opt = document.createElement("option");
+    opt.value = sg; opt.textContent = sg;
+    selSigungu.appendChild(opt);
+  });
+
+  // 렌더링
+  updateStats();
+  buildRegionStats();
+  renderMarkers();
+
+  // 실시간 구독
+  subscribeRealtime();
+}
+
+init();
