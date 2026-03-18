@@ -16,6 +16,7 @@ body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; height: 
 .stat-item strong { font-size: 18px; }
 .stat-item.delivered strong { color: #4ade80; }
 .stat-item.pending strong { color: #f87171; }
+.stat-item.closed strong  { color: #94a3b8; }
 .progress-wrap {
   flex: 1;
   min-width: 150px;
@@ -202,8 +203,9 @@ body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; height: 
   font-weight: 600;
   margin-bottom: 10px;
 }
-.badge.pending { background: #fee2e2; color: #dc2626; }
+.badge.pending   { background: #fee2e2; color: #dc2626; }
 .badge.delivered { background: #dcfce7; color: #16a34a; }
+.badge.closed    { background: #1e293b; color: #fff; }
 #popup hr { border: none; border-top: 1px solid #f1f5f9; margin: 10px 0; }
 #popup p { font-size: 13px; color: #475569; margin-bottom: 5px; line-height: 1.5; }
 #popup-action {
@@ -220,6 +222,20 @@ body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; height: 
 #popup-action:hover { opacity: 0.85; }
 #popup-action.deliver { background: #4ade80; color: #14532d; }
 #popup-action.cancel  { background: #fca5a5; color: #7f1d1d; }
+#popup-closed-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+  background: #1e293b;
+  color: #fff;
+  transition: opacity 0.15s;
+}
+#popup-closed-btn:hover { opacity: 0.85; }
 
 /* 뷰 탭 */
 #view-tabs {
@@ -300,6 +316,8 @@ body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; height: 
 #list-table tbody tr:hover { background: #f8fafc; }
 #list-table tbody tr.row-done { background: #f0fdf4; }
 #list-table tbody tr.row-done:hover { background: #dcfce7; }
+#list-table tbody tr.row-closed { background: #f1f5f9; color: #94a3b8; }
+#list-table tbody tr.row-closed:hover { background: #e2e8f0; }
 #list-table td {
   padding: 8px 12px;
   color: #374151;
