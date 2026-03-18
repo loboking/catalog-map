@@ -468,7 +468,13 @@ function renderList() {
     btn.addEventListener("click", () => {
       const p = properties.find(x => x.id == btn.dataset.id);
       if (!p) return;
-      p.status = p.status === "delivered" ? "pending" : "delivered";
+      if (p.status === "delivered") {
+        p.status = "pending";
+        p.deliveredAt = null;
+      } else {
+        p.status = "delivered";
+        p.deliveredAt = new Date().toISOString();
+      }
       deliveryState[p.id] = p.status;
       saveDeliveryState(deliveryState);
       const m = markerMap[p.id];
