@@ -436,6 +436,7 @@ function renderList() {
       const p = properties.find(x => x.id == btn.dataset.id);
       if (!p) return;
       p.status = p.status === "closed" ? "pending" : "closed";
+      if (p.status === "closed") p.deliveredAt = null;
       await saveStatus(p.id, p.status, p.deliveredAt);
       const m = markerMap[p.id];
       if (m) { m.setIcon(getIcon(p.status)); m.options._status = p.status; }
