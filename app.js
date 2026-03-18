@@ -428,6 +428,18 @@ document.getElementById("btn-export").addEventListener("click", () => {
   XLSX.writeFile(wb, `배포현황_${new Date().toISOString().slice(0,10)}.xlsx`);
 });
 
+// ── 지역별 현황 패널 토글 ─────────────────────────────────────────
+document.getElementById("panel-toggle").addEventListener("click", () => {
+  document.getElementById("stats-panel").classList.add("closed");
+  document.getElementById("panel-open-btn").classList.add("show");
+  map.invalidateSize();
+});
+document.getElementById("panel-open-btn").addEventListener("click", () => {
+  document.getElementById("stats-panel").classList.remove("closed");
+  document.getElementById("panel-open-btn").classList.remove("show");
+  map.invalidateSize();
+});
+
 // ── 초기 실행 ─────────────────────────────────────────────────────
 updateStats();
 buildRegionStats();
