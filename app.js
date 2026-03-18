@@ -2,7 +2,7 @@
 const { createClient } = supabase;
 const sb = createClient(
   'https://kyhyaphsyykqxtbxqqfa.supabase.co',
-  'sb_publishable_0gaX2d8Tc5CjYu3Fp0BNrg_qZPV0tbP'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5aHlhcGhzeXlrcXh0YnhxcWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4Mjg3MDEsImV4cCI6MjA4OTQwNDcwMX0.1qakRwlRc5dqf5VlKeMfyUg8PAQFF0Ofhnhz2PafHhE'
 );
 
 // ── 시군구명 정규화 ───────────────────────────────────────────────
