@@ -23,8 +23,8 @@ let currentView = "map";
 
 // ── 지도 초기화 (Leaflet) ─────────────────────────────────────────
 const map = L.map("map").setView([36.8065, 127.1105], 11);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-  attribution: "© OpenStreetMap contributors © CARTO",
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap contributors",
   maxZoom: 19
 }).addTo(map);
 
