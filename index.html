@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>부동산 카탈로그 배포 관리</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="data.js"></script>
+</head>
+<body>
+
+  <!-- 통계 헤더 -->
+  <header id="stat-header">
+    <div class="stat-item">
+      전체 <strong id="stat-total">0</strong>개
+    </div>
+    <div class="stat-item delivered">
+      🟢 완료 <strong id="stat-done">0</strong>개
+      (<span id="stat-pct">0</span>%)
+    </div>
+    <div class="stat-item pending">
+      🔴 미배포 <strong id="stat-left">0</strong>개
+    </div>
+    <div class="progress-wrap">
+      <div id="progress-bar"></div>
+    </div>
+  </header>
+
+  <!-- 뷰 탭 -->
+  <div id="view-tabs">
+    <button class="view-tab active" data-view="map">🗺️ 지도</button>
+    <button class="view-tab" data-view="list">📋 목록</button>
+  </div>
+
+  <!-- 필터 바 -->
+  <div id="filter-bar">
+    <div id="filter-btns">
+      <button class="filter-btn active" data-filter="all">전체</button>
+      <button class="filter-btn" data-filter="pending">🔴 미배포</button>
+      <button class="filter-btn" data-filter="delivered">🟢 배포완료</button>
+    </div>
+    <div id="region-filters">
+      <select id="sel-sigungu">
+        <option value="">-- 시군구 전체 --</option>
+      </select>
+      <select id="sel-dong">
+        <option value="">-- 법정동 전체 --</option>
+      </select>
+    </div>
+    <input type="text" id="search-box" placeholder="🔍 업소명 / 주소 검색" />
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div id="main">
+    <!-- 지도 뷰 -->
+    <div id="map-view">
+      <div id="map"></div>
+      <aside id="stats-panel">
+        <h3>지역별 현황</h3>
+        <div id="region-stats"></div>
+      </aside>
+    </div>
+
+    <!-- 리스트 뷰 -->
+    <div id="list-view" class="hidden">
+      <div id="list-toolbar">
+        <span id="list-count"></span>
+        <button id="btn-export">⬇️ Excel 다운로드</button>
+      </div>
+      <div id="table-wrap">
+        <table id="list-table">
+          <thead>
+            <tr>
+              <th>번호</th>
+              <th>업소명</th>
+              <th>시군구</th>
+              <th>법정동</th>
+              <th>주소</th>
+              <th>전화번호</th>
+              <th>상태</th>
+              <th>처리</th>
+            </tr>
+          </thead>
+          <tbody id="list-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 오버레이 -->
+  <div id="overlay"></div>
+
+  <!-- 업소 상세 팝업 -->
+  <div id="popup" class="hidden">
+    <button id="popup-close">✕</button>
+    <h3 id="popup-name"></h3>
+    <span id="popup-badge" class="badge"></span>
+    <hr />
+    <p id="popup-addr"></p>
+    <p id="popup-phone"></p>
+    <p id="popup-dong"></p>
+    <hr />
+    <button id="popup-action"></button>
+  </div>
+
+  <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
