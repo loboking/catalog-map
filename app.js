@@ -350,13 +350,19 @@ document.getElementById("popup-action").addEventListener("click", () => {
   closePopup();
 });
 
+// ── 현재 뷰에 맞게 렌더링 ────────────────────────────────────────
+function renderCurrent() {
+  renderMarkers();
+  if (currentView === "list") renderList();
+}
+
 // ── 필터 버튼 ─────────────────────────────────────────────────────
 document.querySelectorAll(".filter-btn").forEach(btn => {
   btn.addEventListener("click", function () {
     document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
     this.classList.add("active");
     currentFilter = this.dataset.filter;
-    renderMarkers();
+    renderCurrent();
   });
 });
 
@@ -389,19 +395,19 @@ selSigungu.addEventListener("change", () => {
     });
     flyToRegion(currentSigungu);
   }
-  renderMarkers();
+  renderCurrent();
 });
 
 selDong.addEventListener("change", () => {
   currentDong = selDong.value;
-  renderMarkers();
+  renderCurrent();
   if (currentDong) flyToDong(currentDong);
 });
 
 // ── 검색 ─────────────────────────────────────────────────────────
 document.getElementById("search-box").addEventListener("input", function () {
   searchQuery = this.value.trim();
-  renderMarkers();
+  renderCurrent();
 });
 
 // ── 뷰 탭 전환 ───────────────────────────────────────────────────
